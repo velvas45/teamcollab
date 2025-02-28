@@ -1,4 +1,6 @@
 @import "tailwindcss";
+
+@custom-variant dark (&:is(.dark *));
 @config "../tailwind.config.ts";
 
 @layer base {
@@ -99,4 +101,13 @@
   border-radius: 0.5rem;
   border: 2px solid white;
   z-index: 10;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
 }
