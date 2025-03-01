@@ -14,6 +14,7 @@ import { useAuth } from "@/providers/auth-provider";
 import { ChatMessage } from "@/components/chat-message";
 import { cn } from "@/lib/utils";
 import VideoCallPage from "@/components/video-call";
+import { OnlineUsersList } from "@/components/list-user-on-video-call";
 
 type Message = {
   name: string;
@@ -70,37 +71,16 @@ export default function ChatPage() {
             <TabsTrigger className="cursor-pointer" value="chats">
               Chats
             </TabsTrigger>
-            {/* <TabsTrigger className="cursor-pointer" value="video">
+            <TabsTrigger className="cursor-pointer" value="video">
               Video
-            </TabsTrigger> */}
+            </TabsTrigger>
           </TabsList>
         </div>
 
         <div className="flex flex-1 overflow-hidden">
           <TabsContent value="chats" className="flex-1 h-full flex">
             <div className="w-64 border-r h-full overflow-hidden flex flex-col">
-              <h3 className="text-md">
-                {userRooms
-                  ? Object.entries(userRooms).length > 1
-                    ? "Peoples"
-                    : "People"
-                  : "No People"}
-              </h3>
-              <ScrollArea className="h-60">
-                <div className="p-2 space-y-2">
-                  {userRooms
-                    ? Object.entries(userRooms).map(([name, details]) => (
-                        <div
-                          key={name}
-                          className="p-3 rounded-lg shadow flex items-center justify-between"
-                        >
-                          <p className="font-semibold">{name}</p>
-                          <p>{details.online ? "Online" : "Offline"}</p>
-                        </div>
-                      ))
-                    : ""}
-                </div>
-              </ScrollArea>
+              <OnlineUsersList />
             </div>
 
             <div className="flex-1 flex flex-col h-full overflow-hidden">
@@ -229,13 +209,13 @@ export default function ChatPage() {
               )} */}
             </div>
           </TabsContent>
-          {/* <TabsContent value="video" className="flex-1 h-full flex">
-            <div className="flex-1 flex flex-col h-full overflow-hidden">
+          <TabsContent value="video" className="flex-1 h-full flex">
+            <div className="flex-1 flex flex-col">
               <>
                 <VideoCallPage />
               </>
             </div>
-          </TabsContent> */}
+          </TabsContent>
         </div>
       </Tabs>
     </div>

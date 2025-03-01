@@ -1,5 +1,6 @@
+"use client";
+
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-// import { formatDistanceToNow } from "date-fns";
 
 type Message = {
   name: string;
@@ -12,7 +13,6 @@ type ChatMessageProps = {
 };
 
 export function ChatMessage({ message, isOwnMessage }: ChatMessageProps) {
-  console.log(message);
   return (
     <div
       className={`flex items-start gap-2 ${
