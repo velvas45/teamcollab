@@ -20,7 +20,6 @@ export default function LoginPage() {
   const [username, setUsername] = useState("");
   const [room, setRoom] = useState("");
   const { login, loading } = useAuth();
-  //   const { toast } = useToast();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
