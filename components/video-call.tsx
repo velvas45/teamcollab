@@ -95,7 +95,7 @@ export default function VideoCallPage() {
       const signalObj = JSON.parse(peerSignalData);
       setIsCallStarted(true);
 
-      const peer = createPeer(localStream, false);
+      const peer = createPeer(localStream!, false);
       peerRef.current = peer;
 
       peer.on("signal", (data) => {
