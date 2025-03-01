@@ -89,7 +89,7 @@ export default function VideoCallPage() {
   };
 
   const joinCall = () => {
-    if (!localStream || !peerSignalData) return;
+    if (!peerSignalData) return;
 
     try {
       const signalObj = JSON.parse(peerSignalData);
