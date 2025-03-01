@@ -1,13 +1,4 @@
 import Peer from "simple-peer";
-import { getSocket } from "./socket";
-
-type PeerConnection = {
-  peer: Peer.Instance;
-  username: string;
-};
-
-let localStream: MediaStream | null = null;
-const peers: Map<string, PeerConnection> = new Map();
 
 const peerConfig = {
   config: {

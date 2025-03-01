@@ -7,7 +7,7 @@ import { PhoneCall } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
 type OnlineUsersListProps = {
-  onStartChat?: (name: string, socketId: string) => void;
+  onStartChat: (name: string, socketId: string) => void;
   isNeedVideoCall?: boolean;
 };
 

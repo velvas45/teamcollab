@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 "use client";
 
 import { useState, useEffect, useRef } from "react";
@@ -8,6 +9,7 @@ import { toast } from "sonner";
 import { createPeer, getLocalStream } from "@/lib/webrtc";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
+import type Peer from "simple-peer";
 
 export default function VideoCallPage() {
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
@@ -60,7 +62,7 @@ export default function VideoCallPage() {
     setIsInitiator(true);
     setIsCallStarted(true);
 
-    const peer = createPeer(localStream, true);
+    const peer = createPeer(localStream!, true);
     peerRef.current = peer;
 
     console.log(peer);

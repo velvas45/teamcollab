@@ -34,6 +34,7 @@ export default function RoomLayout({
         closeSocket();
       };
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, loading, router]);
 
   if (loading || !user) {

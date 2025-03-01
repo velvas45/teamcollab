@@ -80,7 +80,7 @@ export default function ChatPage() {
         <div className="flex flex-1 overflow-hidden">
           <TabsContent value="chats" className="flex-1 h-full flex">
             <div className="w-64 border-r h-full overflow-hidden flex flex-col">
-              <OnlineUsersList />
+              <OnlineUsersList onStartChat={() => {}} />
             </div>
 
             <div className="flex-1 flex flex-col h-full overflow-hidden">
