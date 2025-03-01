@@ -14,7 +14,7 @@ import { useAuth } from "@/providers/auth-provider";
 import { ChatMessage } from "@/components/chat-message";
 import { cn } from "@/lib/utils";
 import VideoCallPage from "@/components/video-call";
-import { OnlineUsersList } from "@/components/list-user-on-video-call";
+import { OnlineUsersList } from "@/components/list-user-online";
 
 type Message = {
   name: string;
@@ -22,7 +22,7 @@ type Message = {
 };
 
 export default function ChatPage() {
-  const { user, userRooms } = useAuth();
+  const { user } = useAuth();
   const [message, setMessage] = useState("");
   const [messages, setMessages] = useState<Message[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);

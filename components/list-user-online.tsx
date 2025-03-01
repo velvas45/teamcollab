@@ -42,8 +42,13 @@ export function OnlineUsersList({
                     />
                   </div>
                   <div>
-                    <div className="font-medium">{name}</div>
-                    <div className="text-xs text-muted-foreground">
+                    <div className="font-medium" id="username">
+                      {name}
+                    </div>
+                    <div
+                      className="text-xs text-muted-foreground"
+                      id="status_user"
+                    >
                       {details.online ? "Online" : "Offline"}
                     </div>
                   </div>

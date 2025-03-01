@@ -15,7 +15,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Phone, PhoneOff, Mic, MicOff, Camera, CameraOff } from "lucide-react";
 import { toast } from "sonner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { OnlineUsersList } from "./list-user-on-video-call";
+import { OnlineUsersList } from "./list-user-online";
 
 type CallState = {
   isInCall: boolean;

@@ -19,7 +19,7 @@ import { useAuth } from "@/providers/auth-provider";
 export default function LoginPage() {
   const [username, setUsername] = useState("");
   const [room, setRoom] = useState("");
-  const { login } = useAuth();
+  const { login, loading } = useAuth();
   //   const { toast } = useToast();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -67,7 +67,7 @@ export default function LoginPage() {
           </CardContent>
           <CardFooter className="flex flex-col space-y-4">
             <Button type="submit" className="w-full">
-              {/* {loading ? "Logging in..." : "Login"} */}Join
+              {loading ? "Joining..." : "Join"}
             </Button>
           </CardFooter>
         </form>
