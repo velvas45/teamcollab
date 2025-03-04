@@ -66,7 +66,7 @@ export default function RoomLayout({
             </div>
           </div>
         </header>
-        <main className="p-6 overflow-auto h-screen">{children}</main>
+        <main className="p-6 overflow-auto h-max">{children}</main>
       </div>
     </div>
   );

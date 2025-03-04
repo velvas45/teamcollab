@@ -1,157 +1,210 @@
+/* eslint-disable react-hooks/exhaustive-deps */
 /* eslint-disable @typescript-eslint/no-unused-vars */
 "use client";
 
 import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Mic, MicOff, Camera, CameraOff, PhoneOff, Copy } from "lucide-react";
+import { Phone, PhoneOff, Mic, MicOff, Camera, CameraOff } from "lucide-react";
 import { toast } from "sonner";
-import { createPeer, getLocalStream } from "@/lib/webrtc";
-import { Input } from "./ui/input";
-import { Label } from "./ui/label";
-import type Peer from "simple-peer";
+import { useAuth } from "@/providers/auth-provider";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { getSocket } from "@/lib/socket";
+import {
+  initializeWebRTC,
+  callUser,
+  endCall,
+  stopLocalStream,
+} from "@/lib/webrtc";
+import { OnlineUsersList } from "./list-user-online";
+
+type CallState = {
+  isInCall: boolean;
+  isCalling: boolean;
+  callerId?: string;
+  callerName?: string;
+  receiverId?: string;
+  receiverName?: string;
+};
 
 export default function VideoCallPage() {
-  const [localStream, setLocalStream] = useState<MediaStream | null>(null);
-  const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
-  const [isCallStarted, setIsCallStarted] = useState(false);
-  const [isInitiator, setIsInitiator] = useState(false);
-  const [signalData, setSignalData] = useState("");
-  const [peerSignalData, setPeerSignalData] = useState("");
+  const { user } = useAuth();
+  const [callState, setCallState] = useState<CallState>({
+    isInCall: false,
+    isCalling: false,
+  });
   const [audioEnabled, setAudioEnabled] = useState(true);
   const [videoEnabled, setVideoEnabled] = useState(true);
 
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
-  const peerRef = useRef<Peer.Instance | null>(null);
+  const socket = getSocket();
 
   useEffect(() => {
-    if (!isCallStarted) return;
-
+    if (!user) return;
     // Initialize local stream
-    const initStream = async () => {
+    const initWebRTC = async () => {
       try {
-        const stream = await getLocalStream();
-        setLocalStream(stream);
-        if (localVideoRef.current) {
+        const stream = await initializeWebRTC();
+        if (localVideoRef.current && stream) {
           localVideoRef.current.srcObject = stream;
         }
       } catch (error) {
+        console.error("Error initializing WebRTC:", error);
         toast.error("Error", {
           description: "Could not access camera/microphone",
         });
       }
     };
 
-    initStream();
+    initWebRTC();
 
-    // Cleanup
-    return () => {
-      if (localStream) {
-        localStream.getTracks().forEach((track) => track.stop());
-      }
-      if (peerRef.current) {
-        peerRef.current.destroy();
-      }
-    };
-  }, [signalData]); // Added dependencies
-
-  const startCall = () => {
-    // if (!localStream) return;
-
-    setIsInitiator(true);
-    setIsCallStarted(true);
-
-    const peer = createPeer(localStream!, true);
-    peerRef.current = peer;
-
-    console.log(peer);
-
-    peer.on("signal", (data) => {
-      console.log("signal on start call", data);
-      // Convert signal data to string to share
-      setSignalData(JSON.stringify(data));
+    // Set up socket event listeners
+    socket?.on("incoming-call", ({ from, fromName }) => {
+      setCallState({
+        isInCall: false,
+        isCalling: true,
+        callerId: from,
+        callerName: fromName,
+      });
     });
 
-    peer.on("stream", (stream) => {
-      setRemoteStream(stream);
+    socket?.on("call-accepted", ({ from, fromName }) => {
+      setCallState((prev) => ({
+        ...prev,
+        isInCall: true,
+        isCalling: false,
+      }));
+    });
+
+    socket?.on("call-rejected", ({ from }) => {
+      setCallState({
+        isInCall: false,
+        isCalling: false,
+      });
+
+      toast.error("Call Rejected", {
+        description: "The user rejected your call",
+      });
+    });
+
+    socket?.on("call-ended", () => {
+      setCallState({
+        isInCall: false,
+        isCalling: false,
+      });
+
+      toast("Call Ended", {
+        description: "The call has ended",
+      });
+    });
+
+    // Handle peer stream
+    socket?.on("peer-stream", ({ stream }) => {
       if (remoteVideoRef.current) {
         remoteVideoRef.current.srcObject = stream;
       }
     });
 
-    peer.on("error", (err) => {
-      console.error("Peer error:", err);
-      toast.error("Connection Error", {
-        description: "Failed to establish connection",
-      });
+    // Cleanup
+    return () => {
+      stopLocalStream();
+      socket?.off("incoming-call");
+      socket?.off("call-accepted");
+      socket?.off("call-rejected");
+      socket?.off("call-ended");
+      socket?.off("peer-stream");
+    };
+  }, [user, socket, callState]); // Added dependencies
+
+  const handleStartCall = (name: string, socketId: string) => {
+    if (name === user?.name) return;
+
+    setCallState({
+      isInCall: false,
+      isCalling: true,
+      receiverId: socketId,
+      receiverName: name,
+    });
+
+    // In a real app, this would initiate the WebRTC call
+    socket?.emit("start-call", {
+      to: socketId,
+      from: user?.name,
+      fromName: user?.name,
+    });
+
+    const peer = callUser(socketId);
+
+    peer.on("stream", (stream) => {
+      if (remoteVideoRef.current) {
+        remoteVideoRef.current.srcObject = stream;
+      }
     });
   };
 
-  const joinCall = () => {
-    if (!peerSignalData) return;
+  const handleAcceptCall = () => {
+    if (!callState.callerId) return;
 
-    try {
-      const signalObj = JSON.parse(peerSignalData);
-      setIsCallStarted(true);
+    setCallState((prev) => ({
+      ...prev,
+      isInCall: true,
+      isCalling: false,
+    }));
 
-      const peer = createPeer(localStream!, false);
-      peerRef.current = peer;
+    // In a real app, this would accept the WebRTC call
+    socket?.emit("accept-call", {
+      to: callState.callerId,
+      from: user?.name,
+      fromName: user?.name,
+    });
 
-      peer.on("signal", (data) => {
-        // Convert signal data to string to share
-        setSignalData(JSON.stringify(data));
-      });
+    const peer = callUser(callState.callerId);
 
-      peer.on("stream", (stream) => {
-        setRemoteStream(stream);
-        if (remoteVideoRef.current) {
-          remoteVideoRef.current.srcObject = stream;
-        }
-      });
-
-      peer.on("error", (err) => {
-        console.error("Peer error:", err);
-        toast.error("Connection Error", {
-          description: "Failed to establish connection",
-        });
-      });
-
-      // Connect with the other peer
-      peer.signal(signalObj);
-    } catch (error) {
-      toast.error("Invalid Signal Data", {
-        description: "Please check the signal data and try again",
-      });
-    }
+    peer.on("stream", (stream) => {
+      if (remoteVideoRef.current) {
+        remoteVideoRef.current.srcObject = stream;
+      }
+    });
   };
 
-  const connectPeers = () => {
-    if (!peerRef.current || !peerSignalData) return;
+  const handleRejectCall = () => {
+    if (!callState.callerId) return;
 
-    try {
-      const signalObj = JSON.parse(peerSignalData);
-      peerRef.current.signal(signalObj);
-    } catch (error) {
-      toast.error("Invalid Signal Data", {
-        description: "Please check the signal data and try again",
-      });
-    }
+    setCallState({
+      isInCall: false,
+      isCalling: false,
+    });
+
+    // In a real app, this would reject the WebRTC call
+    socket?.emit("reject-call", {
+      to: callState.callerId,
+      from: user?.name,
+    });
   };
 
-  const endCall = () => {
-    if (peerRef.current) {
-      peerRef.current.destroy();
-    }
-    setIsCallStarted(false);
-    setRemoteStream(null);
-    setSignalData("");
-    setPeerSignalData("");
+  const handleEndCall = () => {
+    const peerId = callState.callerId || callState.receiverId;
+    if (!peerId) return;
+
+    setCallState({
+      isInCall: false,
+      isCalling: false,
+    });
+
+    // In a real app, this would end the WebRTC call
+    socket?.emit("end-call", {
+      to: peerId,
+      from: user?.name,
+    });
+
+    endCall(peerId);
   };
 
   const toggleAudio = () => {
-    if (localStream) {
-      localStream.getAudioTracks().forEach((track) => {
+    const stream = localVideoRef.current?.srcObject as MediaStream;
+    if (stream) {
+      stream.getAudioTracks().forEach((track) => {
         track.enabled = !audioEnabled;
       });
       setAudioEnabled(!audioEnabled);
@@ -159,144 +212,184 @@ export default function VideoCallPage() {
   };
 
   const toggleVideo = () => {
-    if (localStream) {
-      localStream.getVideoTracks().forEach((track) => {
+    const stream = localVideoRef.current?.srcObject as MediaStream;
+    if (stream) {
+      stream.getVideoTracks().forEach((track) => {
         track.enabled = !videoEnabled;
       });
       setVideoEnabled(!videoEnabled);
     }
   };
 
-  const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text);
-    toast("Copied", {
-      description: "Signal data copied to clipboard",
-    });
-  };
-
   return (
-    <div className="container mx-auto p-4 space-y-4">
-      {!isCallStarted ? (
-        <Card>
-          <CardHeader>
-            <CardTitle>Start or Join a Call</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Button onClick={startCall} className="w-full">
-                Start New Call
-              </Button>
-            </div>
-            <div className="space-y-2">
-              <Label>Or Join with Signal Data</Label>
-              <Input
-                value={peerSignalData}
-                onChange={(e) => setPeerSignalData(e.target.value)}
-                placeholder="Paste signal data here..."
-              />
+    <div className="h-full flex flex-col">
+      {callState.isInCall ? (
+        <div className="flex-1 flex flex-col">
+          <div className="flex-1 relative bg-black rounded-lg overflow-hidden">
+            <video
+              ref={remoteVideoRef}
+              className="peer-video"
+              autoPlay
+              playsInline
+            />
+            <video
+              ref={localVideoRef}
+              className="self-video"
+              autoPlay
+              playsInline
+              muted
+            />
+            <div className="absolute bottom-4 left-0 right-0 flex justify-center space-x-4">
               <Button
-                onClick={joinCall}
-                className="w-full"
-                disabled={!peerSignalData}
+                variant={audioEnabled ? "default" : "destructive"}
+                size="icon"
+                onClick={toggleAudio}
               >
-                Join Call
+                {audioEnabled ? (
+                  <Mic className="h-5 w-5" />
+                ) : (
+                  <MicOff className="h-5 w-5" />
+                )}
+              </Button>
+              <Button variant="destructive" size="icon" onClick={handleEndCall}>
+                <PhoneOff className="h-5 w-5" />
+              </Button>
+              <Button
+                variant={videoEnabled ? "default" : "destructive"}
+                size="icon"
+                onClick={toggleVideo}
+              >
+                {videoEnabled ? (
+                  <Camera className="h-5 w-5" />
+                ) : (
+                  <CameraOff className="h-5 w-5" />
+                )}
               </Button>
             </div>
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Local Video</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="relative aspect-video bg-black rounded-lg overflow-hidden">
-                  <video
-                    ref={localVideoRef}
-                    autoPlay
-                    playsInline
-                    muted
-                    className="absolute inset-0 w-full h-full object-cover"
-                  />
-                </div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader>
-                <CardTitle>Remote Video</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="relative aspect-video bg-black rounded-lg overflow-hidden">
-                  <video
-                    ref={remoteVideoRef}
-                    autoPlay
-                    playsInline
-                    className="absolute inset-0 w-full h-full object-cover"
-                  />
-                </div>
-              </CardContent>
-            </Card>
           </div>
-
-          {signalData && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Your Signal Data</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="relative">
-                  <Input value={signalData} readOnly />
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    className="absolute right-0 top-1/2 -translate-y-1/2 m-0 cursor-pointer"
-                    onClick={() => copyToClipboard(signalData)}
-                  >
-                    <Copy className="h-4 w-4" />
-                  </Button>
+        </div>
+      ) : callState.isCalling && callState.callerId ? (
+        <div className="flex-1 flex items-center justify-center">
+          <Card className="w-full max-w-md">
+            <CardHeader>
+              <CardTitle className="text-center">Incoming Call</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="flex flex-col items-center space-y-4">
+                <Avatar className="h-24 w-24">
+                  <AvatarImage
+                    src={`https://avatar.vercel.sh/${callState.callerName}`}
+                  />
+                  <AvatarFallback className="text-2xl">
+                    {callState.callerName?.charAt(0).toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="text-center">
+                  <h3 className="text-xl font-medium">
+                    {callState.callerName}
+                  </h3>
+                  <p className="text-muted-foreground">is calling you...</p>
                 </div>
-                {!isInitiator && (
-                  <Button onClick={connectPeers} className="w-full">
-                    Connect
-                  </Button>
+              </div>
+              <div className="flex justify-center space-x-4">
+                <Button
+                  variant="destructive"
+                  size="icon"
+                  className="h-12 w-12 rounded-full"
+                  onClick={handleRejectCall}
+                >
+                  <PhoneOff className="h-6 w-6" />
+                </Button>
+                <Button
+                  variant="default"
+                  size="icon"
+                  className="h-12 w-12 rounded-full bg-green-500 hover:bg-green-600"
+                  onClick={handleAcceptCall}
+                >
+                  <Phone className="h-6 w-6" />
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      ) : callState.isCalling && callState.receiverId ? (
+        <div className="flex-1 flex items-center justify-center">
+          <Card className="w-full max-w-md">
+            <CardHeader>
+              <CardTitle className="text-center">Calling...</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="flex flex-col items-center space-y-4">
+                <Avatar className="h-24 w-24">
+                  <AvatarImage
+                    src={`https://avatar.vercel.sh/${callState.receiverName}`}
+                  />
+                  <AvatarFallback className="text-2xl">
+                    {callState.receiverName?.charAt(0).toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="text-center">
+                  <h3 className="text-xl font-medium">
+                    {callState.receiverName}
+                  </h3>
+                  <p className="text-muted-foreground">Ringing...</p>
+                </div>
+              </div>
+              <div className="flex justify-center">
+                <Button
+                  variant="destructive"
+                  size="icon"
+                  className="h-12 w-12 rounded-full"
+                  onClick={handleEndCall}
+                >
+                  <PhoneOff className="h-6 w-6" />
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      ) : (
+        <div className="flex h-max">
+          <div className="w-64 border-r h-full overflow-hidden flex flex-col">
+            <OnlineUsersList
+              onStartChat={(name, socketId) => {
+                handleStartCall(name, socketId);
+              }}
+              isNeedVideoCall
+            />
+          </div>
+          <div className="flex-1 relative bg-black rounded-lg overflow-hidden h-96 w-80">
+            <video
+              ref={localVideoRef}
+              className="w-full h-full object-cover"
+              autoPlay
+              playsInline
+              muted
+            />
+            <div className="absolute bottom-4 left-0 right-0 flex justify-center space-x-4">
+              <Button
+                variant={audioEnabled ? "default" : "destructive"}
+                size="icon"
+                onClick={toggleAudio}
+              >
+                {audioEnabled ? (
+                  <Mic className="h-5 w-5" />
+                ) : (
+                  <MicOff className="h-5 w-5" />
                 )}
-              </CardContent>
-            </Card>
-          )}
-
-          <div className="fixed bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-4 bg-background/80 backdrop-blur-sm p-4 rounded-full shadow-lg">
-            <Button
-              variant={audioEnabled ? "outline" : "destructive"}
-              size="icon"
-              onClick={toggleAudio}
-            >
-              {audioEnabled ? (
-                <Mic className="h-4 w-4" />
-              ) : (
-                <MicOff className="h-4 w-4" />
-              )}
-            </Button>
-            <Button
-              variant="destructive"
-              size="icon"
-              className="h-12 w-12"
-              onClick={endCall}
-            >
-              <PhoneOff className="h-6 w-6" />
-            </Button>
-            <Button
-              variant={videoEnabled ? "outline" : "destructive"}
-              size="icon"
-              onClick={toggleVideo}
-            >
-              {videoEnabled ? (
-                <Camera className="h-4 w-4" />
-              ) : (
-                <CameraOff className="h-4 w-4" />
-              )}
-            </Button>
+              </Button>
+              <Button
+                variant={videoEnabled ? "default" : "destructive"}
+                size="icon"
+                onClick={toggleVideo}
+              >
+                {videoEnabled ? (
+                  <Camera className="h-5 w-5" />
+                ) : (
+                  <CameraOff className="h-5 w-5" />
+                )}
+              </Button>
+            </div>
           </div>
         </div>
       )}
