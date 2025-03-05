@@ -29,8 +29,8 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <head>
         {/* <meta
-          httpEquiv="Content-Security-Policy"
-          content="default-src 'self'; script-src 'self' 'unsafe-eval'; connect-src 'self' wss:; img-src 'self' data: blob:; media-src 'self' blob:; style-src 'self' 'unsafe-inline';"
+          http-equiv="Content-Security-Policy"
+          content="default-src 'self'; script-src 'self' https://trusted-cdn.com"
         /> */}
       </head>
       <body

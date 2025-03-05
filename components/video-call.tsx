@@ -134,9 +134,10 @@ export default function VideoCallPage() {
       fromName: user?.name,
     });
 
-    const peer = callUser(socketId);
+    const peer = callUser(user?.name as string);
 
     peer.on("stream", (stream) => {
+      console.log("peer on stream start call", stream);
       if (remoteVideoRef.current) {
         remoteVideoRef.current.srcObject = stream;
       }
@@ -152,16 +153,16 @@ export default function VideoCallPage() {
       isCalling: false,
     }));
 
-    // In a real app, this would accept the WebRTC call
+    const peer = callUser(callState.callerId);
+
     socket?.emit("accept-call", {
       to: callState.callerId,
       from: user?.name,
       fromName: user?.name,
     });
 
-    const peer = callUser(callState.callerId);
-
     peer.on("stream", (stream) => {
+      console.log("peer on stream", stream);
       if (remoteVideoRef.current) {
         remoteVideoRef.current.srcObject = stream;
       }
@@ -224,17 +225,17 @@ export default function VideoCallPage() {
   return (
     <div className="h-full flex flex-col">
       {callState.isInCall ? (
-        <div className="flex-1 flex flex-col">
-          <div className="flex-1 relative bg-black rounded-lg overflow-hidden">
+        <div className="flex flex-col">
+          <div className="relative bg-black rounded-lg h-screen">
             <video
               ref={remoteVideoRef}
-              className="peer-video"
+              className="peer-video "
               autoPlay
               playsInline
             />
             <video
               ref={localVideoRef}
-              className="self-video"
+              className="self-video "
               autoPlay
               playsInline
               muted
